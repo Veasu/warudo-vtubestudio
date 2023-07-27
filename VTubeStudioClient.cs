@@ -129,7 +129,7 @@ public class VTubeStudioMocapClient
 
   public void Update()
   {
-    if (this._cts == null){
+    if (this._cts == null || this._heartbeatCts == null){
       return;
     }
     string rawMessage = this.RawMessage;
@@ -251,7 +251,7 @@ public class VTubeStudioMocapClient
         Thread.Sleep(250);
       }
     }
-    if (this.client == null)
+    if (this.heartbeatClient == null)
     {
       this._failedToStart = true;
     }
@@ -278,10 +278,12 @@ public class VTubeStudioMocapClient
       {
         try
         {
-          IPEndPoint sendEndpoint = new IPEndPoint(IPAddress.Parse(_ip), _sendPort);
-          byte[] data = Encoding.ASCII.GetBytes($"{{\"messageType\":\"iOSTrackingDataRequest\",\"sentBy\":\"Warudo\",\"sendForSeconds\":10,\"ports\":[{_receivePort}]}}");
-          this.heartbeatClient.Send(data, data.Length, _ip, _sendPort);
-          this.UpdateLastSentTime();
+          if (Time.realtimeSinceStartup > _lastSentTime + 4.0f){
+            IPEndPoint sendEndpoint = new IPEndPoint(IPAddress.Parse(_ip), _sendPort);
+            byte[] data = Encoding.ASCII.GetBytes($"{{\"messageType\":\"iOSTrackingDataRequest\",\"sentBy\":\"Warudo\",\"sendForSeconds\":10,\"ports\":[{_receivePort}]}}");
+            this.heartbeatClient.Send(data, data.Length, _ip, _sendPort);
+            this.UpdateLastSentTime();
+          }
         }
         catch (Exception ex)
         {
