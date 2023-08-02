@@ -6,7 +6,7 @@ using Warudo.Core.Plugins;
 Name = "VTubeStudio Tracking", 
 Description = "Adds a VTubeStudio tracking asset. Any issues feel free to reach out on discord or steam.", 
 Author = "Veasu", 
-Version = "0.1.0", 
+Version = "0.1.1", 
 Icon = @"<svg version=""1.0"" xmlns=""http://www.w3.org/2000/svg""
  width=""50.000000pt"" height=""50.000000pt"" viewBox=""0 0 50.000000 50.000000""
  preserveAspectRatio=""xMidYMid meet""><g transform=""translate(0.000000,50.000000) scale(0.100000,-0.100000)""

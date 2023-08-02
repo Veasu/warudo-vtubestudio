@@ -298,7 +298,7 @@ public class VTubeStudioMocapClient
       this._blendShapes[bs.Key] = bs.Value;
     }
     this._headRotation = Quaternion.Euler(parsedMessage.Rotation.y, parsedMessage.Rotation.x, parsedMessage.Rotation.z);
-    this._headPosition = parsedMessage.Position * 0.04f;
+    this._headPosition = parsedMessage.VNyanPos != null ? (Vector3)parsedMessage.VNyanPos : parsedMessage.Position * 0.04f;
     this._leftEyeRotation = Quaternion.Euler(parsedMessage.EyeLeft);
     this._rightEyeRotation = Quaternion.Euler(parsedMessage.EyeRight);
   }

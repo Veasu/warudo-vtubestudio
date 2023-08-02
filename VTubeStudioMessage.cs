@@ -2,6 +2,8 @@ using System;
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
+using Newtonsoft.Json;
+
 public class VTubeStudioMessage
 {
   public long Timestamp {get; set;}
@@ -9,6 +11,7 @@ public class VTubeStudioMessage
   public bool FaceFound {get; set;}
   public Vector3 Rotation {get; set;}
   public Vector3 Position {get; set;}
+  public Vector3? VNyanPos {get; set;}
   public Vector3 EyeLeft {get; set;}
   public Vector3 EyeRight {get; set;}
   public List<VTubeStudioBlendshape> Blendshapes {get; set;}
