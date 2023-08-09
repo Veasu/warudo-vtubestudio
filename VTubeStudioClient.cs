@@ -245,67 +245,8 @@ public class VTubeStudioMocapClient
     }
   }
 
-  // private VTubeStudioMessage DeserializeMessagePerformant(string msg){
-  //   var reader = new JsonTextReader(new StringReader(msg));
-  //   VTubeStudioMessage response = new();
-  //   var currentProperty = string.Empty;
-  //   var objectName = string.Empty;
-  //   var keyName = string.Empty;
-  //   var currentVector = new Vector3();
-  //   var isArray = false;
-  //   while (reader.Read())
-  //   {
-  //     if (reader.Value != null)
-  //     {
-  //       if (reader.TokenType == JsonToken.PropertyName)
-  //         currentProperty = reader.Value.ToString();
-
-  //       if (reader.TokenType == JsonToken.Boolean && currentProperty == "FaceFound")
-  //         currentVector.x = float.Parse(reader.Value.ToString());
-
-  //       if (reader.TokenType == JsonToken.Float && currentProperty == "x")
-  //         currentVector.x = float.Parse(reader.Value.ToString());
-
-  //       if (reader.TokenType == JsonToken.Float && currentProperty == "y")
-  //         currentVector.y = float.Parse(reader.Value.ToString());
-
-  //       if (reader.TokenType == JsonToken.Float && currentProperty == "z")
-  //         currentVector.z = float.Parse(reader.Value.ToString());
-
-  //       if (reader.TokenType == JsonToken.String && currentProperty == "k")
-  //       {
-  //         keyName = reader.Value.ToString();
-  //         response.BlendshapeDictionary.Add(reader.Value.ToString(), 0.0f);
-  //       }
-          
-  //       if (reader.TokenType == JsonToken.Float && currentProperty == "v")
-  //         response.BlendshapeDictionary[keyName] = float.Parse(reader.Value.ToString());
-  //     }
-  //     else
-  //     {
-  //       if (reader.TokenType == JsonToken.StartObject && !isArray) {
-  //         currentVector = Vector3.zero;
-  //         objectName = currentProperty;
-  //       }
-  //       if (reader.TokenType == JsonToken.EndObject && !isArray) {
-  //         typeof(VTubeStudioMessage).GetProperty(objectName).SetValue(response, currentVector);
-  //         objectName = string.Empty;
-  //       }
-
-  //       if (reader.TokenType == JsonToken.StartArray) {
-  //         isArray = true;
-  //       }
-  //       if (reader.TokenType == JsonToken.EndArray) {
-  //         isArray = false;
-  //       }
-  //     }
-  //   }
-  //   return response;
-  // }
-
   private void DeserializeMessage(string msg){
     VTubeStudioMessage parsedMessage =  JsonConvert.DeserializeObject<VTubeStudioMessage>(msg);
-    //VTubeStudioMessage parsedMessage = DeserializeMessagePerformant(msg);
     foreach (KeyValuePair<string, float> bs in parsedMessage.BlendshapeDictionary){
       this._blendShapes[bs.Key] = bs.Value;
     }
