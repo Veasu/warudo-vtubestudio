@@ -2,7 +2,7 @@ using Cysharp.Threading.Tasks;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -29,7 +29,7 @@ public class VTubeStudioMocapClient
   private volatile float _lastReceivedTime;
   private volatile float _lastSentTime;
   private UdpClient client;
-  private UdpClient heartbeatClient;
+  private float _sendTime;
 
   public Dictionary<string, float> BlendShapes => this._blendShapes;
 
@@ -116,15 +116,17 @@ public class VTubeStudioMocapClient
     }
   }
 
-  public VTubeStudioMocapClient(string ip, int sendPort, int receivePort)
+  public VTubeStudioMocapClient(string ip, int sendPort, int receivePort, float sendTime)
   {
     this._sendPort = sendPort;
     this._receivePort = receivePort;
     this._ip = ip;
     this._cts = new CancellationTokenSource();
     this._heartbeatCts = new CancellationTokenSource();
-    new Thread((ThreadStart) (() => this.ThreadMethod(this._cts.Token))).Start();
-    new Thread((ThreadStart) (() => this.HeartbeatThread(this._heartbeatCts.Token))).Start();
+    this._sendTime = sendTime;
+    new Thread((ThreadStart) (() => {
+      this.ThreadMethod(this._cts.Token);
+    })).Start();
   }
 
   public void Update()
@@ -154,14 +156,17 @@ public class VTubeStudioMocapClient
     this._lastSentTime = Time.realtimeSinceStartup;
   }
 
+  public void UpdateSendTime(float sendTime)
+  {
+    this._sendTime = sendTime;
+  }
+
   public void Destroy()
   {
     this._cts?.Cancel();
-    this._heartbeatCts.Cancel();
     try
     {
       this.client?.Close();
-      this.heartbeatClient?.Close();
     }
     catch (Exception ex)
     {
@@ -179,8 +184,11 @@ public class VTubeStudioMocapClient
     {
       try
       {
-        this.client = new UdpClient(this._receivePort, AddressFamily.InterNetwork);
+        this.client = new UdpClient(_receivePort, AddressFamily.InterNetwork);
         this.client.Client.ReceiveTimeout = 500;
+        byte[] data = Encoding.ASCII.GetBytes($"{{\"messageType\":\"iOSTrackingDataRequest\",\"sentBy\":\"Warudo\",\"sendForSeconds\":10,\"ports\":[{_receivePort}]}}");
+        this.client.Send(data, data.Length, _ip, _sendPort);
+        this.UpdateLastSentTime();
         break;
       }
       catch (Exception ex)
@@ -204,7 +212,7 @@ public class VTubeStudioMocapClient
       {
         try
         {
-          IPEndPoint remoteEP = (IPEndPoint) null;
+          IPEndPoint remoteEP = (IPEndPoint)null;
           this.RawMessage = Encoding.ASCII.GetString(this.client.Receive(ref remoteEP));
           this.UpdateLastReceivedTime();
           break;
@@ -220,7 +228,13 @@ public class VTubeStudioMocapClient
       {
         try
         {
-          IPEndPoint remoteEP = (IPEndPoint) null;
+          if (Time.realtimeSinceStartup > _lastSentTime + _sendTime){
+            IPEndPoint sendEndpoint = new IPEndPoint(IPAddress.Parse(_ip), _sendPort);
+            byte[] data = Encoding.ASCII.GetBytes($"{{\"messageType\":\"iOSTrackingDataRequest\",\"sentBy\":\"Warudo\",\"sendForSeconds\":10,\"ports\":[{_receivePort}]}}");
+            this.client.Send(data, data.Length, _ip, _sendPort);
+            this.UpdateLastSentTime();
+          }
+          IPEndPoint remoteEP = (IPEndPoint)null;
           this.RawMessage = Encoding.ASCII.GetString(this.client.Receive(ref remoteEP));
           this.UpdateLastReceivedTime();
         }
@@ -231,69 +245,67 @@ public class VTubeStudioMocapClient
     }
   }
 
-  private void HeartbeatThread(CancellationToken token)
-  {
-    for (int index = 2; index >= 0; --index)
-    {
-      try
-      {
-        this.heartbeatClient = new UdpClient(this._sendPort, AddressFamily.InterNetwork);
-        break;
-      }
-      catch (Exception ex)
-      {
-        if (index == 0)
-        {
-          Log.UserError("[VTubeStudio] Failed to start client on port " + this._sendPort.ToString(), ex);
-          this._failedToStart = true;
-          return;
-        }
-        Thread.Sleep(250);
-      }
-    }
-    if (this.heartbeatClient == null)
-    {
-      this._failedToStart = true;
-    }
-    else
-    {
-      while (!token.IsCancellationRequested)
-      {
-        try
-        {
-          IPEndPoint sendEndpoint = new IPEndPoint(IPAddress.Parse(_ip), _sendPort);
-          byte[] data = Encoding.ASCII.GetBytes($"{{\"messageType\":\"iOSTrackingDataRequest\",\"sentBy\":\"Warudo\",\"sendForSeconds\":10,\"ports\":[{_receivePort}]}}");
-          this.heartbeatClient.Send(data, data.Length, _ip, _sendPort);
-          this.UpdateLastSentTime();
-          break;
-        }
-        catch (Exception ex)
-        {
-        }
-      }
-      if (token.IsCancellationRequested)
-        return;
-      Debug.Log((object) string.Format("[VTubeStudio] Connected to VTubeStudio. Port: {0}", (object) this._sendPort));
-      while (!token.IsCancellationRequested)
-      {
-        try
-        {
-          if (Time.realtimeSinceStartup > _lastSentTime + 4.0f){
-            IPEndPoint sendEndpoint = new IPEndPoint(IPAddress.Parse(_ip), _sendPort);
-            byte[] data = Encoding.ASCII.GetBytes($"{{\"messageType\":\"iOSTrackingDataRequest\",\"sentBy\":\"Warudo\",\"sendForSeconds\":10,\"ports\":[{_receivePort}]}}");
-            this.heartbeatClient.Send(data, data.Length, _ip, _sendPort);
-            this.UpdateLastSentTime();
-          }
-        }
-        catch (Exception ex)
-        {
-        }
-      }
-    }
-  }
+  // private VTubeStudioMessage DeserializeMessagePerformant(string msg){
+  //   var reader = new JsonTextReader(new StringReader(msg));
+  //   VTubeStudioMessage response = new();
+  //   var currentProperty = string.Empty;
+  //   var objectName = string.Empty;
+  //   var keyName = string.Empty;
+  //   var currentVector = new Vector3();
+  //   var isArray = false;
+  //   while (reader.Read())
+  //   {
+  //     if (reader.Value != null)
+  //     {
+  //       if (reader.TokenType == JsonToken.PropertyName)
+  //         currentProperty = reader.Value.ToString();
+
+  //       if (reader.TokenType == JsonToken.Boolean && currentProperty == "FaceFound")
+  //         currentVector.x = float.Parse(reader.Value.ToString());
+
+  //       if (reader.TokenType == JsonToken.Float && currentProperty == "x")
+  //         currentVector.x = float.Parse(reader.Value.ToString());
+
+  //       if (reader.TokenType == JsonToken.Float && currentProperty == "y")
+  //         currentVector.y = float.Parse(reader.Value.ToString());
+
+  //       if (reader.TokenType == JsonToken.Float && currentProperty == "z")
+  //         currentVector.z = float.Parse(reader.Value.ToString());
+
+  //       if (reader.TokenType == JsonToken.String && currentProperty == "k")
+  //       {
+  //         keyName = reader.Value.ToString();
+  //         response.BlendshapeDictionary.Add(reader.Value.ToString(), 0.0f);
+  //       }
+          
+  //       if (reader.TokenType == JsonToken.Float && currentProperty == "v")
+  //         response.BlendshapeDictionary[keyName] = float.Parse(reader.Value.ToString());
+  //     }
+  //     else
+  //     {
+  //       if (reader.TokenType == JsonToken.StartObject && !isArray) {
+  //         currentVector = Vector3.zero;
+  //         objectName = currentProperty;
+  //       }
+  //       if (reader.TokenType == JsonToken.EndObject && !isArray) {
+  //         typeof(VTubeStudioMessage).GetProperty(objectName).SetValue(response, currentVector);
+  //         objectName = string.Empty;
+  //       }
+
+  //       if (reader.TokenType == JsonToken.StartArray) {
+  //         isArray = true;
+  //       }
+  //       if (reader.TokenType == JsonToken.EndArray) {
+  //         isArray = false;
+  //       }
+  //     }
+  //   }
+  //   return response;
+  // }
 
   private void DeserializeMessage(string msg){
     VTubeStudioMessage parsedMessage =  JsonConvert.DeserializeObject<VTubeStudioMessage>(msg);
+    //VTubeStudioMessage parsedMessage = DeserializeMessagePerformant(msg);
     foreach (KeyValuePair<string, float> bs in parsedMessage.BlendshapeDictionary){
       this._blendShapes[bs.Key] = bs.Value;
     }

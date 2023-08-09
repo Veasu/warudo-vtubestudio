@@ -30,6 +30,13 @@ public class VTubeStudioReceiverAsset : GenericTrackerAsset, IQuickCalibratable
   [Label("PORT")]
   public int Port = 21412;
 
+  [Markdown(-997, false, false)]
+  public string HeartbeatString = "Heartbeat Timer is the time between messages that are sent to VTubeStudio to request data. This can be raised to lower the amount of messages being sent, doing so may help less powerful phone / tablets, but if raised too high may cause dropouts.";
+  [DataInput(-996)]
+  [FloatSlider(1.0f, 5.0f)]
+  [Label("Heartbeat Timer")]
+  public float sendTime = 1.0f;
+
   [Trigger]
   [Label("Create Blueprint")]
   public void createBlueprint() {
@@ -104,6 +111,12 @@ public class VTubeStudioReceiverAsset : GenericTrackerAsset, IQuickCalibratable
   protected override void OnCreate()
   {
     base.OnCreate();
+     Watch<float>(nameof(sendTime), (from, to) => {
+      if (client != null) {
+        client.UpdateSendTime(to);
+      }
+    });
+
     this.Watch("Port", new Action(this.ResetReceiver));
     this.Watch("Ip", new Action(this.ResetReceiver));
     Watch<bool>(nameof(shouldersFollow), (from, to) => {
@@ -131,8 +144,8 @@ public class VTubeStudioReceiverAsset : GenericTrackerAsset, IQuickCalibratable
 
   protected override void OnDestroy()
   {
-    base.OnDestroy();
     this.client.Destroy();
+    base.OnDestroy();
   }
 
   public async void ResetReceiver()
@@ -144,7 +157,7 @@ public class VTubeStudioReceiverAsset : GenericTrackerAsset, IQuickCalibratable
       mocapReceiverAsset.client.Destroy();
     }
     await Context.PluginManager.GetPlugin<CorePlugin>().BeforeListenToPort();
-    mocapReceiverAsset.client = new VTubeStudioMocapClient(mocapReceiverAsset.Ip, mocapReceiverAsset.Port, 50619);
+    mocapReceiverAsset.client = new VTubeStudioMocapClient(mocapReceiverAsset.Ip, mocapReceiverAsset.Port, 50619, sendTime);
     mocapReceiverAsset.Status = "RECEIVER_STARTED_ON_PORT".Localized((object) mocapReceiverAsset.Port, (object) string.Join(", ", Networking.GetLocalIPAddresses().Select<IPAddress, string>((Func<IPAddress, string>) (it => it.ToString()))));
     mocapReceiverAsset.IsStarted = true;
     mocapReceiverAsset.isFirstTimeCalibrated = false;
