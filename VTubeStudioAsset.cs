@@ -179,6 +179,9 @@ public class VTubeStudioReceiverAsset : GenericTrackerAsset, IQuickCalibratable
     this.client.Update();
     if ((double) Time.realtimeSinceStartup - (double) this.client.LastReceivedTime > 0.5)
       return false;
+    if (!this.client.IsTracked) {
+      return false;
+    } 
     this.RawBlendShapes.Clear();
     foreach (KeyValuePair<string, float> blendShape in this.client.BlendShapes)
     {

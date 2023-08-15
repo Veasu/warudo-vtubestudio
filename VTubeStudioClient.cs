@@ -30,6 +30,7 @@ public class VTubeStudioMocapClient
   private volatile float _lastSentTime;
   private UdpClient client;
   private float _sendTime;
+  private bool _isTracked = false;
 
   public Dictionary<string, float> BlendShapes => this._blendShapes;
 
@@ -44,6 +45,8 @@ public class VTubeStudioMocapClient
   public float LastReceivedTime => this._lastReceivedTime;
 
   public bool FailedToStart => this._failedToStart;
+
+  public bool IsTracked => this._isTracked;
 
   private static List<string> vtsBlendshapes = new List<string>()
   {
@@ -132,14 +135,19 @@ public class VTubeStudioMocapClient
   public void Update()
   {
     if (this._cts == null || this._heartbeatCts == null){
+      _isTracked = false;
       return;
     }
     string rawMessage = this.RawMessage;
-    if (string.IsNullOrEmpty(rawMessage))
+    if (string.IsNullOrEmpty(rawMessage)) {
+      _isTracked = false;
       return;
+    }
+      
     this.RawMessage = "";
-    if (this._prevMessage == rawMessage)
+    if (this._prevMessage == rawMessage) {
       return;
+    }
     this.DeserializeMessage(rawMessage);
     this._prevMessage = rawMessage;
   }
@@ -254,5 +262,6 @@ public class VTubeStudioMocapClient
     this._headPosition = parsedMessage.VNyanPos != null ? (Vector3)parsedMessage.VNyanPos : parsedMessage.Position * 0.04f;
     this._leftEyeRotation = Quaternion.Euler(parsedMessage.EyeLeft);
     this._rightEyeRotation = Quaternion.Euler(parsedMessage.EyeRight);
+    this._isTracked = parsedMessage.FaceFound;
   }
 }
