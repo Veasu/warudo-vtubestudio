@@ -135,12 +135,10 @@ public class VTubeStudioMocapClient
   public void Update()
   {
     if (this._cts == null || this._heartbeatCts == null){
-      _isTracked = false;
       return;
     }
     string rawMessage = this.RawMessage;
     if (string.IsNullOrEmpty(rawMessage)) {
-      _isTracked = false;
       return;
     }
       
